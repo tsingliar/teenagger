@@ -1,0 +1,66 @@
+# ============================================================
+# Teenagger configuration file
+# Linux/systemd-style INI format. Lines starting with # are comments.
+#
+# Copy this file to "teenagger.conf" in the same folder (or pass
+# --config /path/to/file to any teenagger command) and fill in
+# your real values. Keep teenagger.conf out of version control --
+# it contains your Twilio auth token.
+# ============================================================
+
+# ---- Twilio account (get these from https://console.twilio.com) ----
+[twilio]
+account_sid = ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+auth_token  = your_twilio_auth_token_here
+from_number = +15551234567
+# On a Twilio trial account you can ONLY send SMS to phone numbers you
+# have verified in the console (Phone Numbers -> Verified Caller IDs).
+# See README.md for the full walkthrough.
+
+# ---- The parent/guardian who gets "done" notifications ----
+[parent]
+name  = Mom
+phone = +15559876543
+
+# ---- Default nagging schedule, used by any chore that doesn't ----
+# ---- specify its own [schedule.*] section.                    ----
+[schedule.default]
+# How often to re-send the nag text while a chore is still open.
+interval_minutes = 30
+# Nags are only sent within this local daily time window, so the
+# teenager (and you) aren't woken up at 2am. Format: HH:MM, 24h.
+quiet_hours_start = 21:00
+quiet_hours_end   = 08:00
+# Stop nagging automatically this long after the due time, even if
+# never marked done (0 = nag forever until done).
+max_hours_after_due = 12
+
+# ---- Teenagers ----
+# One [teen.<id>] section per kid. <id> is a short slug used to
+# reference them from [chore.*] sections below.
+[teen.alex]
+name  = Alex
+phone = +15551112222
+
+[teen.jamie]
+name  = Jamie
+phone = +15553334444
+
+# ---- Chores ----
+# One [chore.<id>] section per recurring or one-off chore.
+# due_time is HH:MM (24h, local time) -- the time of day the chore
+# is due. If "days" is omitted, the chore is due every day.
+[chore.trash]
+description = Take out the trash and recycling
+teen        = alex
+due_time    = 20:00
+days        = mon,thu
+notify      = parent
+
+[chore.dishes]
+description = Load and start the dishwasher
+teen        = jamie
+due_time    = 19:30
+notify      = parent
+# Per-chore override of the default schedule (optional):
+interval_minutes = 20

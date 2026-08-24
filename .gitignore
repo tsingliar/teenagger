@@ -1,0 +1,6 @@
+venv/
+config/teenagger.conf
+state/teenagger_state.json
+logs/*.log
+__pycache__/
+*.pyc
