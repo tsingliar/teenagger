@@ -1,8 +1,4 @@
-"""Local runtime state: which chore-instances are pending/done, and nag history.
-
-Kept separate from the human-edited config file. Stored as JSON so it's easy
-to inspect or reset by hand (`rm state/teenagger_state.json`).
-"""
+"""Local runtime state: which chore-instances are pending/done, and nag history."""
 
 from __future__ import annotations
 
@@ -19,8 +15,8 @@ def default_state_path() -> Path:
 @dataclass
 class ChoreInstanceState:
     chore_id: str
-    date: str  # ISO date, e.g. "2026-08-24"
-    status: str = "pending"  # pending | done | expired
+    date: str
+    status: str = "pending"
     last_nagged_at: str | None = None
     nag_count: int = 0
     done_at: str | None = None
@@ -28,9 +24,12 @@ class ChoreInstanceState:
 
 @dataclass
 class TeenPollState:
-    # Twilio message SID of the newest inbound message we've already
-    # processed for this teen, so we don't re-process it on the next poll.
     last_seen_sid: str | None = None
+    nagging_enabled: bool = True
+    # ISO timestamp of the last time we actually asked Twilio for this
+    # teen's inbound messages -- lets `teenagger status` show whether the
+    # background loop is alive, independent of whether anything was found.
+    last_polled_at: str | None = None
 
 
 @dataclass
@@ -71,14 +70,12 @@ class StateStore:
         return self.instances[key]
 
     def find_latest_pending_for_teen(self, chore_ids_for_teen: list[str], today_iso: str) -> ChoreInstanceState | None:
-        """Most recent pending instance (today, or an older un-expired one) for a teen's chores."""
         candidates = [
             inst for key, inst in self.instances.items()
             if inst.chore_id in chore_ids_for_teen and inst.status == "pending"
         ]
         if not candidates:
             return None
-        # Prefer today's instance; otherwise the most recent date.
         candidates.sort(key=lambda i: i.date, reverse=True)
         return candidates[0]
 

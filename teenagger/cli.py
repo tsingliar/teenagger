@@ -30,6 +30,11 @@ def cmd_list(args) -> int:
     config = load_config(args.config)
     state = StateStore.load(args.state)
     today_iso = datetime.now().date().isoformat()
+
+    paused = [t.name for t in config.teens.values() if not state.get_teen_poll(t.id).nagging_enabled]
+    if paused:
+        print(f"Paused (texted STOP): {', '.join(paused)}")
+
     print(f"Chores for {today_iso}:")
     for chore in config.chores.values():
         if not chore.is_due_on(datetime.now().weekday()):
@@ -41,6 +46,58 @@ def cmd_list(args) -> int:
             f"due {chore.due_time.strftime('%H:%M')} | status={inst.status} "
             f"| nags sent={inst.nag_count} | last_nagged={inst.last_nagged_at or '-'}"
         )
+    state.save()
+    return 0
+
+
+def _fmt_ago(iso_str: str | None, now: datetime) -> str:
+    if not iso_str:
+        return "never"
+    dt = datetime.fromisoformat(iso_str)
+    secs = int((now - dt).total_seconds())
+    if secs < 0:
+        return dt.strftime("%Y-%m-%d %H:%M")
+    if secs < 60:
+        return f"{secs}s ago"
+    mins = secs // 60
+    if mins < 60:
+        return f"{mins}m ago"
+    hours = mins // 60
+    if hours < 48:
+        return f"{hours}h ago"
+    return f"{hours // 24}d ago"
+
+
+def cmd_status(args) -> int:
+    config = load_config(args.config)
+    state = StateStore.load(args.state)
+    now = datetime.now()
+    today_iso = now.date().isoformat()
+
+    print(f"Teenagger status -- {now.strftime('%Y-%m-%d %H:%M')}")
+
+    print("\nTeens:")
+    for teen in config.teens.values():
+        poll_state = state.get_teen_poll(teen.id)
+        nag_state = "PAUSED" if not poll_state.nagging_enabled else "on"
+        last_polled = _fmt_ago(poll_state.last_polled_at, now)
+        hint = "  <- background process may not be running" if poll_state.last_polled_at is None else ""
+        print(f"  {teen.name:<10} {teen.phone:<16} nagging: {nag_state:<7} last polled: {last_polled}{hint}")
+
+    print("\nChores:")
+    for chore in config.chores.values():
+        teen = config.teens[chore.teen_id]
+        days = ",".join(chore.days) if chore.days else "every day"
+        if chore.is_due_on(now.weekday()):
+            inst = state.get_or_create_instance(chore.id, today_iso)
+            detail = f"status={inst.status} nags={inst.nag_count} last_nagged={_fmt_ago(inst.last_nagged_at, now)}"
+        else:
+            detail = "not due today"
+        print(
+            f"  [{chore.id}] \"{chore.description}\" -> {teen.name} "
+            f"due {chore.due_time.strftime('%H:%M')} ({days}) | {detail}"
+        )
+
     state.save()
     return 0
 
@@ -68,6 +125,42 @@ def cmd_done(args) -> int:
                 f"(Manually marked) \"{chore.description}\" is done.",
             )
     return 0
+
+
+def _set_nagging(args, enabled: bool) -> int:
+    config = load_config(args.config)
+    if args.teen_id not in config.teens:
+        print(f"Unknown teen id '{args.teen_id}'. Known: {sorted(config.teens)}", file=sys.stderr)
+        return 1
+    state = StateStore.load(args.state)
+    teen = config.teens[args.teen_id]
+    poll_state = state.get_teen_poll(args.teen_id)
+
+    if poll_state.nagging_enabled == enabled:
+        verb = "already active" if enabled else "already paused"
+        print(f"Nagging for {teen.name} is {verb}; nothing to do.")
+        return 0
+
+    poll_state.nagging_enabled = enabled
+    state.save()
+    verb = "resumed" if enabled else "paused"
+    print(f"Nagging for {teen.name} {verb}.")
+
+    if not args.silent:
+        twilio = TeenaggerTwilioClient(config.twilio)
+        if enabled:
+            twilio.send_sms(teen.phone, "Your parent turned chore reminders back on for you.")
+        else:
+            twilio.send_sms(teen.phone, "Your parent paused chore reminders for you. Text START to resume yourself.")
+    return 0
+
+
+def cmd_pause(args) -> int:
+    return _set_nagging(args, enabled=False)
+
+
+def cmd_resume(args) -> int:
+    return _set_nagging(args, enabled=True)
 
 
 def cmd_test_sms(args) -> int:
@@ -106,10 +199,23 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("list", help="Show today's chores and their status")
     p.set_defaults(func=cmd_list)
 
+    p = sub.add_parser("status", help="Full overview: every teen's nag/pause state + every chore's status")
+    p.set_defaults(func=cmd_status)
+
     p = sub.add_parser("done", help="Manually mark a chore done (and notify)")
     p.add_argument("chore_id")
     p.add_argument("--silent", action="store_true", help="Don't send the parent notification")
     p.set_defaults(func=cmd_done)
+
+    p = sub.add_parser("pause", help="Pause nagging for a teen (same effect as them texting STOP)")
+    p.add_argument("teen_id")
+    p.add_argument("--silent", action="store_true", help="Don't text the teen to let them know")
+    p.set_defaults(func=cmd_pause)
+
+    p = sub.add_parser("resume", help="Resume nagging for a teen (same effect as them texting START)")
+    p.add_argument("teen_id")
+    p.add_argument("--silent", action="store_true", help="Don't text the teen to let them know")
+    p.set_defaults(func=cmd_resume)
 
     p = sub.add_parser("test-sms", help="Send a test text to a configured person")
     p.add_argument("to", help="id of a teen (e.g. 'alex') or 'parent'")
