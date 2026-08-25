@@ -1,8 +1,10 @@
-"""The nagging engine: decide who to text, when, and process 'done' replies."""
+"""The nagging engine: decide who to text, when, and process replies
+(DONE, plus the standard SMS opt-out keywords STOP/START/HELP)."""
 
 from __future__ import annotations
 
 import logging
+import re
 import time as time_module
 from datetime import datetime, timedelta
 
@@ -15,6 +17,16 @@ log = logging.getLogger("teenagger.scheduler")
 
 DONE_KEYWORDS = {"done", "did it", "finished", "complete", "completed"}
 
+STOP_KEYWORDS = {"stop", "stopall", "unsubscribe", "cancel", "end", "quit"}
+START_KEYWORDS = {"start", "unstop"}
+HELP_KEYWORDS = {"help", "info"}
+
+HELP_REPLY_TEXT = "Talk to your parent about chores. Text STOP if you want to stop the messages."
+
+
+def _normalize(body: str) -> str:
+    return re.sub(r"[^\w\s]", "", (body or "").strip().lower())
+
 
 def _is_done_reply(body: str) -> bool:
     text = body.strip().lower()
@@ -26,9 +38,6 @@ def chores_for_teen(config: AppConfig, teen_id: str) -> list[str]:
 
 
 def run_tick(config: AppConfig, state: StateStore, twilio: TeenaggerTwilioClient, now: datetime | None = None) -> None:
-    """One pass: send any due nags, then check for 'done' replies. Idempotent-ish;
-    safe to call repeatedly (e.g. once a minute from the background loop).
-    """
     now = now or datetime.now()
     today_iso = now.date().isoformat()
 
@@ -51,11 +60,14 @@ def _send_due_nags(config, state, twilio, now, today_iso) -> None:
         if inst.status != "pending":
             continue
 
+        if not state.get_teen_poll(chore.teen_id).nagging_enabled:
+            continue
+
         schedule = _effective_schedule(config, chore)
         due_dt = datetime.combine(now.date(), chore.due_time)
 
         if now < due_dt:
-            continue  # not due yet today
+            continue
 
         if schedule.max_hours_after_due and now > due_dt + timedelta(hours=schedule.max_hours_after_due):
             if inst.status == "pending":
@@ -86,11 +98,15 @@ def _send_due_nags(config, state, twilio, now, today_iso) -> None:
 def _process_replies(config, state, twilio, now, today_iso) -> None:
     for teen in config.teens.values():
         poll_state = state.get_teen_poll(teen.id)
+        # Record that a poll attempt happened even if nothing new came back --
+        # this is what lets `teenagger status` show whether the background
+        # process is actually alive and checking Twilio.
+        poll_state.last_polled_at = now.isoformat()
+
         messages = twilio.fetch_new_inbound_from(teen.phone, since_minutes=180)
         if not messages:
             continue
 
-        # Only look at messages newer than the last one we've already handled.
         new_messages = []
         for m in messages:
             if poll_state.last_seen_sid and m.sid == poll_state.last_seen_sid:
@@ -100,18 +116,48 @@ def _process_replies(config, state, twilio, now, today_iso) -> None:
         if not new_messages:
             continue
 
-        # Remember the newest SID we've seen regardless of whether it said "done".
         poll_state.last_seen_sid = messages[0].sid
 
-        done_reply = next((m for m in new_messages if _is_done_reply(m.body or "")), None)
-        if not done_reply:
-            continue
+        for message in reversed(new_messages):
+            _handle_inbound_message(config, state, twilio, teen, message, now, today_iso)
 
+
+def _handle_inbound_message(config, state, twilio, teen, message, now, today_iso) -> None:
+    body = message.body or ""
+    keyword = _normalize(body)
+    poll_state = state.get_teen_poll(teen.id)
+
+    if keyword in STOP_KEYWORDS:
+        poll_state.nagging_enabled = False
+        log.info("%s replied STOP -- pausing nags for them", teen.name)
+        twilio.send_sms(
+            config.parent.phone,
+            f"{teen.name} replied STOP -- I've paused chore reminders for "
+            f"them. They (or you) can text START to this number to resume.",
+        )
+        return
+
+    if keyword in START_KEYWORDS:
+        poll_state.nagging_enabled = True
+        log.info("%s replied START -- resuming nags for them", teen.name)
+        twilio.send_sms(
+            config.parent.phone,
+            f"{teen.name} replied START -- chore reminders have resumed "
+            f"for them.",
+        )
+        return
+
+    if keyword in HELP_KEYWORDS:
+        log.info("%s replied HELP", teen.name)
+        twilio.send_sms(teen.phone, HELP_REPLY_TEXT)
+        return
+
+    if _is_done_reply(body):
         chore_ids = chores_for_teen(config, teen.id)
         inst = state.find_latest_pending_for_teen(chore_ids, today_iso)
         if not inst:
             log.info("Got 'done' from %s but no pending chore found -- ignoring", teen.name)
-            continue
+            return
 
         inst.status = "done"
         inst.done_at = now.isoformat()
@@ -128,7 +174,6 @@ def _process_replies(config, state, twilio, now, today_iso) -> None:
 
 
 def run_forever(config_path=None, state_path=None, tick_seconds: int = 60) -> None:
-    """Foreground loop -- what the launchd agent actually executes."""
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -141,7 +186,6 @@ def run_forever(config_path=None, state_path=None, tick_seconds: int = 60) -> No
 
     while True:
         try:
-            # Reload config each tick so edits take effect without a restart.
             config = load_config(config_path)
             run_tick(config, state, twilio)
         except Exception:

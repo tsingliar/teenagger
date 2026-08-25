@@ -78,6 +78,18 @@ python3 -m teenagger run --once
 python3 -m teenagger list
 ```
 
+For a fuller picture -- every teen's nag/pause state and when Twilio was
+last polled for them, plus every chore's status (not just today's) -- use:
+
+```bash
+python3 -m teenagger status
+```
+
+The "last polled" timestamp on each teen doubles as a health check: if it
+says "never" (or hasn't updated in a while) once the launchd agent should
+be running, that's a sign the background process isn't actually alive --
+check `logs/teenagger.err.log`.
+
 ## 5. How nagging works
 
 - Each chore becomes "active" once its `due_time` passes on a day it's due.
@@ -98,6 +110,49 @@ python3 -m teenagger list
   ```
 
 - Config changes take effect within one tick (default 60s) -- no restart needed.
+
+### Opt-out keywords: STOP, START, HELP
+
+Teenagger also recognizes the standard SMS opt-out keywords, checked on every
+poll alongside DONE:
+
+- **STOP** (also recognizes `stopall`, `unsubscribe`, `cancel`, `end`, `quit`)
+  -- pauses all nagging for that teen (no more reminder texts sent to them)
+  and immediately texts the parent: "*&lt;teen&gt; replied STOP -- I've
+  paused chore reminders for them...*". Nothing is sent back to the teen for
+  STOP itself (your Twilio number/messaging service may add its own
+  carrier-required opt-out confirmation on top of this -- see note below).
+- **START** (also recognizes `unstop`) -- resumes nagging for that teen and
+  texts the parent to confirm.
+- **HELP** (also recognizes `info`) -- replies directly to the teen with:
+  *"Talk to your parent about chores. Text STOP if you want to stop the
+  messages."*
+
+Run `python3 -m teenagger list` to see which teens are currently paused.
+
+You (the parent) can also pause/resume from your end without waiting on a
+text round-trip:
+
+```bash
+python3 -m teenagger pause alex    # same effect as Alex texting STOP
+python3 -m teenagger resume alex   # same effect as Alex texting START
+```
+
+By default these text the teen to let them know (mirroring the app's own
+STOP/START confirmations); pass `--silent` to skip that.
+
+**Note on Twilio's built-in opt-out handling:** if your Twilio number has
+"Advanced Opt-Out" enabled (the default for toll-free numbers and most
+Messaging Services), Twilio itself intercepts STOP/START/HELP at the
+platform level -- it can send its own auto-reply and block your `from_number`
+from texting that recipient again, *before* Teenagger's polling ever sees
+the message. That's a good safety net, but it means Teenagger's own STOP
+handling is a secondary/backup layer, not the only thing standing between a
+teen and being blocked. If you want Teenagger's app-level logic to be the
+sole authority (e.g. so a "STOP" only pauses that one teen instead of
+Twilio blocking the number at the carrier level, or so you can send them a
+custom re-engagement text later), check your Messaging Service's opt-out
+settings in the Twilio Console.
 
 ## 6. Run it in the background (launchd)
 
