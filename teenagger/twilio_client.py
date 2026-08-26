@@ -51,12 +51,19 @@ class TeenaggerTwilioClient:
         return self.send_message(to, body, channel="sms")
 
     def fetch_new_inbound_from(self, phone_number: str, since_minutes: int = 60):
-        """Return inbound messages sent TO our Twilio number FROM phone_number,
-        newest first, within the last `since_minutes` minutes.
+        """Return inbound messages FROM phone_number, newest first, within
+        the last `since_minutes` minutes.
+
+        Deliberately does NOT filter on `to=`. For SMS, inbound replies are
+        addressed to `from_number` -- but for RCS, Twilio addresses inbound
+        replies to an `rcs:...` agent identifier instead of the plain phone
+        number, which silently excluded every RCS reply when this filtered
+        on `to=from_number`. The Messages resource is already scoped to our
+        own account, and filtering by the teen's own phone number as the
+        sender is specific enough on its own.
         """
         after = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
         messages = self.client.messages.list(
-            to=self.settings.from_number,
             from_=phone_number,
             date_sent_after=after,
         )

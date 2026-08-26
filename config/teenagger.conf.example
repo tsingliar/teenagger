@@ -26,11 +26,11 @@ rcs_messaging_service_sid = MGXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 # ---- The parent/guardian who gets "done" notifications ----
 # channel (optional) is "rcs" or "sms", same as for teens below. Defaults
-# to "sms" for the parent (teens default to "rcs" instead).
+# to "rcs", same as teens.
 [parent]
 name  = Mom
 phone = +15559876543
-channel = sms
+channel = rcs
 
 # ---- Default nagging schedule, used by any chore that doesn't ----
 # ---- specify its own [schedule.*] section.                    ----
@@ -87,3 +87,10 @@ due_time    = 19:30
 notify      = parent
 # Per-chore override of the default schedule (optional):
 interval_minutes = 20
+
+[chore.laundry]
+description = Fold the laundry
+teen        = jamie
+due_time    = 18:00
+days        = tue
+notify      = parent

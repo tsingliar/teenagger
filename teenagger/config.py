@@ -98,7 +98,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         id="parent",
         name=pr.get("name", "Parent").strip(),
         phone=pr["phone"].strip(),
-        channel=_parse_channel(pr.get("channel"), section="parent", default="sms"),
+        channel=_parse_channel(pr.get("channel"), section="parent", default="rcs"),
     )
 
     # ---- [schedule.default] ----

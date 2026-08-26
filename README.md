@@ -60,7 +60,7 @@ It's already excluded if you set up a `.gitignore` (see below).
 ### RCS vs. SMS
 
 Each `[teen.<id>]` (and `[parent]`) section can set `channel = rcs` or
-`channel = sms`. **Teens default to `rcs`**; the parent defaults to `sms`.
+`channel = sms`. **Everyone defaults to `rcs`**, including the parent.
 Pick whichever is actually approved/working on your Twilio account --
 there's no requirement that everyone use the same channel.
 
