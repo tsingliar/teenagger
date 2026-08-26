@@ -61,12 +61,22 @@ class TeenaggerTwilioClient:
         on `to=from_number`. The Messages resource is already scoped to our
         own account, and filtering by the teen's own phone number as the
         sender is specific enough on its own.
+
+        Also queries the `rcs:<phone_number>` form of the sender, since
+        Twilio records the `From` on an inbound RCS message as e.g.
+        `rcs:+14254690619` rather than the plain number -- a plain-number
+        filter alone silently misses every RCS reply, the same way the old
+        `to=` filter did. Results from both forms are merged and de-duped,
+        so this works regardless of which channel a given reply actually
+        came in on (including an RCS-to-SMS fallback).
         """
         after = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
-        messages = self.client.messages.list(
-            from_=phone_number,
-            date_sent_after=after,
-        )
-        # Twilio returns newest-first by default; be explicit anyway.
+        by_sid = {}
+        for candidate_from in (phone_number, f"rcs:{phone_number}"):
+            for m in self.client.messages.list(from_=candidate_from, date_sent_after=after):
+                by_sid[m.sid] = m
+        messages = list(by_sid.values())
+        # Twilio returns newest-first by default; be explicit anyway, especially
+        # now that we're merging two separate result sets.
         messages.sort(key=lambda m: m.date_sent or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
         return messages

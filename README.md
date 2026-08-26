@@ -74,6 +74,15 @@ there's no requirement that everyone use the same channel.
   message rather than a cryptic Twilio API error -- `validate` and `list`
   still work fine in the meantime, so you're not blocked while RCS approval
   is pending. Set `channel = sms` for anyone you need working right now.
+- **RCS addressing quirk (already handled, documented for future debugging):**
+  Twilio records inbound RCS messages with `rcs:` prefixed identifiers on
+  both sides -- e.g. `From: rcs:+14254690619` and `To: rcs:<agent-id>`,
+  instead of the plain phone number SMS uses. Polling for replies queries
+  both the plain number and the `rcs:`-prefixed form of it (and doesn't
+  filter on `To` at all), so this is handled -- but if a reply ever seems to
+  go missing again, checking the raw message in Twilio Console -> Monitor ->
+  Logs -> Messaging for unexpected `From`/`To` formatting is the first
+  place to look.
 
 ## 4. Validate and test
 
