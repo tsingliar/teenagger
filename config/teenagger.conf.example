@@ -16,11 +16,21 @@ from_number = +15551234567
 # On a Twilio trial account you can ONLY send SMS to phone numbers you
 # have verified in the console (Phone Numbers -> Verified Caller IDs).
 # See README.md for the full walkthrough.
+#
+# Required only if any teen/parent below uses channel = rcs (the default
+# for teens -- see [teen.*] below). This is the SID of a Messaging Service
+# with an RCS sender configured/approved in the Twilio Console. Leave unset
+# while RCS approval is still pending -- sending will just fail with a
+# clear error until it's filled in, without breaking `validate`/`list`.
+rcs_messaging_service_sid = MGXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 # ---- The parent/guardian who gets "done" notifications ----
+# channel (optional) is "rcs" or "sms", same as for teens below. Defaults
+# to "sms" for the parent (teens default to "rcs" instead).
 [parent]
 name  = Mom
 phone = +15559876543
+channel = sms
 
 # ---- Default nagging schedule, used by any chore that doesn't ----
 # ---- specify its own [schedule.*] section.                    ----
@@ -38,13 +48,26 @@ max_hours_after_due = 12
 # ---- Teenagers ----
 # One [teen.<id>] section per kid. <id> is a short slug used to
 # reference them from [chore.*] sections below.
+#
+# channel (optional) is "rcs" or "sms" -- which Twilio channel to use for
+# this teen. Defaults to "rcs". Set channel = sms for a teen if RCS isn't
+# working for them yet, or you just want to use SMS.
 [teen.alex]
 name  = Alex
 phone = +15551112222
+channel = rcs
 
 [teen.jamie]
 name  = Jamie
 phone = +15553334444
+channel = rcs
+
+# A teen with no chores yet -- handy for testing your own setup end-to-end
+# on a phone you actually control.
+[teen.testy]
+name  = Testy
+phone = +14258661325
+channel = rcs
 
 # ---- Chores ----
 # One [chore.<id>] section per recurring or one-off chore.

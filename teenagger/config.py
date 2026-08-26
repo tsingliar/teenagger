@@ -40,6 +40,18 @@ def _parse_ids(value: str) -> list[str]:
     return [v.strip() for v in value.split(",") if v.strip()]
 
 
+_VALID_CHANNELS = {"rcs", "sms"}
+
+
+def _parse_channel(value: str | None, *, section: str, default: str) -> str:
+    channel = (value or default).strip().lower()
+    if channel not in _VALID_CHANNELS:
+        raise ConfigError(
+            f"[{section}] channel = '{channel}' is invalid; use 'rcs' or 'sms'"
+        )
+    return channel
+
+
 def default_config_path() -> Path:
     return Path(__file__).resolve().parent.parent / "config" / "teenagger.conf"
 
@@ -66,10 +78,14 @@ def load_config(path: str | Path | None = None) -> AppConfig:
                 f"[twilio] {req} looks unset -- fill in your real Twilio "
                 f"credentials in the config file."
             )
+    rcs_sid = tw.get("rcs_messaging_service_sid", "").strip()
+    if rcs_sid.startswith("your_") or "XXXX" in rcs_sid:
+        rcs_sid = ""  # still-a-placeholder -- treat as unset rather than a real SID
     twilio_settings = TwilioSettings(
         account_sid=tw["account_sid"].strip(),
         auth_token=tw["auth_token"].strip(),
         from_number=tw["from_number"].strip(),
+        rcs_messaging_service_sid=rcs_sid or None,
     )
 
     # ---- [parent] ----
@@ -78,7 +94,12 @@ def load_config(path: str | Path | None = None) -> AppConfig:
     pr = parser["parent"]
     if not pr.get("phone", "").strip():
         raise ConfigError("[parent] phone is required")
-    parent = Person(id="parent", name=pr.get("name", "Parent").strip(), phone=pr["phone"].strip())
+    parent = Person(
+        id="parent",
+        name=pr.get("name", "Parent").strip(),
+        phone=pr["phone"].strip(),
+        channel=_parse_channel(pr.get("channel"), section="parent", default="sms"),
+    )
 
     # ---- [schedule.default] ----
     sched_section = parser["schedule.default"] if "schedule.default" in parser else {}
@@ -108,6 +129,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
             id=teen_id,
             name=sec.get("name", teen_id).strip(),
             phone=sec["phone"].strip(),
+            channel=_parse_channel(sec.get("channel"), section=section_name, default="rcs"),
         )
     if not teens:
         raise ConfigError("No [teen.*] sections found -- add at least one teenager")

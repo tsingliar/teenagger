@@ -57,6 +57,24 @@ for the full field list.
 **Keep `teenagger.conf` private** -- it contains your Twilio auth token.
 It's already excluded if you set up a `.gitignore` (see below).
 
+### RCS vs. SMS
+
+Each `[teen.<id>]` (and `[parent]`) section can set `channel = rcs` or
+`channel = sms`. **Teens default to `rcs`**; the parent defaults to `sms`.
+Pick whichever is actually approved/working on your Twilio account --
+there's no requirement that everyone use the same channel.
+
+- `channel = sms` sends from `[twilio] from_number`, exactly like before.
+- `channel = rcs` sends through a Messaging Service with an RCS sender,
+  configured via `[twilio] rcs_messaging_service_sid`. Get this SID from
+  Twilio Console -> Messaging -> Services, once you've created a Messaging
+  Service and added/verified an RCS sender on it.
+- If a person's `channel = rcs` but `rcs_messaging_service_sid` isn't set
+  (or is still the placeholder), sending to them fails with a clear error
+  message rather than a cryptic Twilio API error -- `validate` and `list`
+  still work fine in the meantime, so you're not blocked while RCS approval
+  is pending. Set `channel = sms` for anyone you need working right now.
+
 ## 4. Validate and test
 
 ```bash

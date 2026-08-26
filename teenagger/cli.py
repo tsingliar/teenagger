@@ -19,6 +19,8 @@ def cmd_validate(args) -> int:
         print(f"Config error: {e}", file=sys.stderr)
         return 1
     print(f"OK: {len(config.teens)} teen(s), {len(config.chores)} chore(s) configured.")
+    for teen in config.teens.values():
+        print(f"  - teen [{teen.id}] {teen.name} ({teen.phone}) via {teen.channel.upper()}")
     for chore in config.chores.values():
         teen = config.teens[chore.teen_id]
         days = ",".join(chore.days) if chore.days else "every day"
@@ -82,7 +84,7 @@ def cmd_status(args) -> int:
         nag_state = "PAUSED" if not poll_state.nagging_enabled else "on"
         last_polled = _fmt_ago(poll_state.last_polled_at, now)
         hint = "  <- background process may not be running" if poll_state.last_polled_at is None else ""
-        print(f"  {teen.name:<10} {teen.phone:<16} nagging: {nag_state:<7} last polled: {last_polled}{hint}")
+        print(f"  {teen.name:<10} {teen.phone:<16} via {teen.channel.upper():<3} nagging: {nag_state:<7} last polled: {last_polled}{hint}")
 
     print("\nChores:")
     for chore in config.chores.values():
@@ -120,9 +122,10 @@ def cmd_done(args) -> int:
         twilio = TeenaggerTwilioClient(config.twilio)
         for notify_id in chore.notify_ids:
             person = config.people[notify_id]
-            twilio.send_sms(
+            twilio.send_message(
                 person.phone,
                 f"(Manually marked) \"{chore.description}\" is done.",
+                channel=person.channel,
             )
     return 0
 
@@ -149,9 +152,9 @@ def _set_nagging(args, enabled: bool) -> int:
     if not args.silent:
         twilio = TeenaggerTwilioClient(config.twilio)
         if enabled:
-            twilio.send_sms(teen.phone, "Your parent turned chore reminders back on for you.")
+            twilio.send_message(teen.phone, "Your parent turned chore reminders back on for you.", channel=teen.channel)
         else:
-            twilio.send_sms(teen.phone, "Your parent paused chore reminders for you. Text START to resume yourself.")
+            twilio.send_message(teen.phone, "Your parent paused chore reminders for you. Text START to resume yourself.", channel=teen.channel)
     return 0
 
 
@@ -170,8 +173,12 @@ def cmd_test_sms(args) -> int:
         return 1
     person = config.people[args.to]
     twilio = TeenaggerTwilioClient(config.twilio)
-    sid = twilio.send_sms(person.phone, "Test message from Teenagger. If you got this, Twilio is wired up correctly.")
-    print(f"Sent test SMS to {person.name} ({person.phone}); Twilio SID={sid}")
+    sid = twilio.send_message(
+        person.phone,
+        "Test message from Teenagger. If you got this, Twilio is wired up correctly.",
+        channel=person.channel,
+    )
+    print(f"Sent test message ({person.channel.upper()}) to {person.name} ({person.phone}); Twilio SID={sid}")
     return 0
 
 

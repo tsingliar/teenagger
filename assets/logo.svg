@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3AA6B9"/>
+      <stop offset="100%" stop-color="#1F7A8C"/>
+    </linearGradient>
+    <linearGradient id="basketGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#C98A4B"/>
+      <stop offset="100%" stop-color="#9C6530"/>
+    </linearGradient>
+    <linearGradient id="dwGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E7EEF1"/>
+      <stop offset="100%" stop-color="#C3D1D6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Badge background -->
+  <circle cx="256" cy="256" r="248" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="248" fill="none" stroke="#0F4C5C" stroke-width="8"/>
+
+  <!-- ===================== Laundry basket (left) ===================== -->
+  <g>
+    <!-- basket body -->
+    <path d="M 78 247 L 244 247 L 226 333 Q 161 351 96 333 Z" fill="url(#basketGrad)" stroke="#7A4A20" stroke-width="4"/>
+    <!-- weave lines -->
+    <path d="M 100 257 L 112 327" stroke="#7A4A20" stroke-width="3" fill="none" opacity="0.55"/>
+    <path d="M 132 259 L 138 337" stroke="#7A4A20" stroke-width="3" fill="none" opacity="0.55"/>
+    <path d="M 161 260 L 161 341" stroke="#7A4A20" stroke-width="3" fill="none" opacity="0.55"/>
+    <path d="M 190 259 L 184 337" stroke="#7A4A20" stroke-width="3" fill="none" opacity="0.55"/>
+    <path d="M 222 257 L 210 327" stroke="#7A4A20" stroke-width="3" fill="none" opacity="0.55"/>
+
+    <!-- clothes draped over the front rim, hanging down the outside of the basket -->
+    <path d="M 96 231 Q 90 269 96 311 Q 104 333 118 329 Q 128 325 124 305 Q 118 275 122 237 Z"
+          fill="#E85D75" stroke="#B23A54" stroke-width="3"/>
+    <path d="M 130 227 Q 128 259 136 301 Q 142 323 158 319 Q 170 315 164 293 Q 156 261 156 229 Z"
+          fill="#F2C14E" stroke="#C79A2E" stroke-width="3"/>
+    <path d="M 172 229 Q 176 265 190 307 Q 196 327 210 321 Q 220 315 212 295 Q 200 263 196 231 Z"
+          fill="#6FB3B8" stroke="#3E8489" stroke-width="3"/>
+
+    <!-- basket rim (drawn after drapes so the lip sits on top of the fabric) -->
+    <ellipse cx="161" cy="247" rx="83" ry="16" fill="#DFA25E" stroke="#7A4A20" stroke-width="4"/>
+  </g>
+
+  <!-- ===================== Dishwasher (right) ===================== -->
+  <g>
+    <rect x="298" y="209" width="130" height="150" rx="10" fill="url(#dwGrad)" stroke="#7B8C93" stroke-width="4"/>
+    <!-- control panel strip -->
+    <rect x="298" y="209" width="130" height="22" rx="8" fill="#5C6F76"/>
+    <circle cx="313" cy="220" r="4" fill="#EAF6F8"/>
+    <circle cx="328" cy="220" r="4" fill="#EAF6F8"/>
+    <circle cx="343" cy="220" r="4" fill="#EAF6F8"/>
+    <!-- door seam + handle -->
+    <rect x="304" y="245" width="118" height="108" rx="6" fill="none" stroke="#7B8C93" stroke-width="3"/>
+    <rect x="304" y="245" width="118" height="10" fill="#7B8C93"/>
+    <!-- sparkle marks to say "clean" -->
+    <g stroke="#EAF6F8" stroke-width="4" stroke-linecap="round">
+      <path d="M 448 229 l 0 16 M 440 237 l 16 0"/>
+      <path d="M 452 265 l 0 12 M 446 271 l 12 0"/>
+    </g>
+  </g>
+
+  <!-- Buzz trail -->
+  <g stroke="#EAF6F8" stroke-width="5" fill="none" opacity="0.85" stroke-linecap="round">
+    <path d="M 296 70 q 18 12 0 24 q -18 12 0 24"/>
+    <path d="M 322 45 q 20 14 0 28 q -20 14 0 28"/>
+  </g>
+
+  <!-- ===================== Mosquito (large, diving toward the basket) ===================== -->
+  <g transform="translate(268,118) rotate(35) scale(2.05)">
+    <!-- wings -->
+    <ellipse cx="-6" cy="-8" rx="22" ry="10" fill="#EAF6F8" opacity="0.55" transform="rotate(-20 -6 -8)"/>
+    <ellipse cx="6" cy="-10" rx="22" ry="10" fill="#EAF6F8" opacity="0.55" transform="rotate(15 6 -10)"/>
+
+    <!-- legs -->
+    <g stroke="#16222A" stroke-width="3" stroke-linecap="round">
+      <line x1="-6" y1="2" x2="-30" y2="-6"/>
+      <line x1="-6" y1="6" x2="-32" y2="10"/>
+      <line x1="-4" y1="10" x2="-26" y2="26"/>
+      <line x1="6" y1="2" x2="30" y2="-6"/>
+      <line x1="6" y1="6" x2="32" y2="10"/>
+      <line x1="4" y1="10" x2="26" y2="26"/>
+    </g>
+
+    <!-- body -->
+    <ellipse cx="0" cy="0" rx="9" ry="20" fill="#16222A"/>
+    <!-- head -->
+    <circle cx="0" cy="-20" r="7" fill="#16222A"/>
+    <!-- proboscis -->
+    <line x1="0" y1="-26" x2="0" y2="-50" stroke="#16222A" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- ===================== Wordmark: "TEE" + shared "N" + "AGGER" =====================
+       Whole lockup shifted 20px left of center. TEEN (top row) sits higher
+       than NAGGER (bottom row), which is nudged up ~2px further than before. -->
+  <g font-family="Helvetica, Arial, sans-serif" font-weight="800" fill="#EAF6F8">
+    <text x="209" y="418" text-anchor="end" font-size="34" letter-spacing="0.5">TEE</text>
+    <text x="236" y="453" text-anchor="middle" font-size="80">N</text>
+    <text x="263" y="453" text-anchor="start" font-size="34" letter-spacing="0.5">AGGER</text>
+  </g>
+</svg>

@@ -90,7 +90,7 @@ def _send_due_nags(config, state, twilio, now, today_iso) -> None:
                 f"was due at {chore.due_time.strftime('%H:%M')}. "
                 f"Reply DONE when it's finished."
             )
-            twilio.send_sms(teen.phone, body)
+            twilio.send_message(teen.phone, body, channel=teen.channel)
             inst.last_nagged_at = now.isoformat()
             inst.nag_count += 1
 
@@ -130,26 +130,28 @@ def _handle_inbound_message(config, state, twilio, teen, message, now, today_iso
     if keyword in STOP_KEYWORDS:
         poll_state.nagging_enabled = False
         log.info("%s replied STOP -- pausing nags for them", teen.name)
-        twilio.send_sms(
+        twilio.send_message(
             config.parent.phone,
             f"{teen.name} replied STOP -- I've paused chore reminders for "
             f"them. They (or you) can text START to this number to resume.",
+            channel=config.parent.channel,
         )
         return
 
     if keyword in START_KEYWORDS:
         poll_state.nagging_enabled = True
         log.info("%s replied START -- resuming nags for them", teen.name)
-        twilio.send_sms(
+        twilio.send_message(
             config.parent.phone,
             f"{teen.name} replied START -- chore reminders have resumed "
             f"for them.",
+            channel=config.parent.channel,
         )
         return
 
     if keyword in HELP_KEYWORDS:
         log.info("%s replied HELP", teen.name)
-        twilio.send_sms(teen.phone, HELP_REPLY_TEXT)
+        twilio.send_message(teen.phone, HELP_REPLY_TEXT, channel=teen.channel)
         return
 
     if _is_done_reply(body):
@@ -166,10 +168,11 @@ def _handle_inbound_message(config, state, twilio, teen, message, now, today_iso
 
         for notify_id in chore.notify_ids:
             person = config.people[notify_id]
-            twilio.send_sms(
+            twilio.send_message(
                 person.phone,
                 f"{teen.name} says \"{chore.description}\" is done. "
                 f"(You may want to go check!)",
+                channel=person.channel,
             )
 
 

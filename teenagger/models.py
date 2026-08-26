@@ -11,6 +11,9 @@ class TwilioSettings:
     account_sid: str
     auth_token: str
     from_number: str
+    # Messaging Service SID with an RCS sender configured. Required only if
+    # some Person's channel is "rcs" (the default for teens).
+    rcs_messaging_service_sid: str | None = None
 
 
 @dataclass
@@ -20,6 +23,8 @@ class Person:
     id: str
     name: str
     phone: str
+    # "rcs" or "sms". Which Twilio channel to use when messaging this person.
+    channel: str = "sms"
 
 
 @dataclass
