@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from .config import AppConfig, load_config
 from .models import Chore
 from .state import StateStore
+from .status_text import compact_status_text
 from .twilio_client import TeenaggerTwilioClient
 
 log = logging.getLogger("teenagger.scheduler")
@@ -20,6 +21,7 @@ DONE_KEYWORDS = {"done", "did it", "finished", "complete", "completed"}
 STOP_KEYWORDS = {"stop", "stopall", "unsubscribe", "cancel", "end", "quit"}
 START_KEYWORDS = {"start", "unstop"}
 HELP_KEYWORDS = {"help", "info"}
+STATUS_KEYWORDS = {"status"}
 
 HELP_REPLY_TEXT = "Talk to your parent about chores. Text STOP if you want to stop the messages."
 
@@ -96,14 +98,16 @@ def _send_due_nags(config, state, twilio, now, today_iso) -> None:
 
 
 def _process_replies(config, state, twilio, now, today_iso) -> None:
-    for teen in config.teens.values():
-        poll_state = state.get_teen_poll(teen.id)
+    # Poll everyone -- teens (for DONE/STOP/START/HELP/STATUS) and the
+    # parent (for STATUS only; see the is_teen gate in _handle_inbound_message).
+    for person in config.people.values():
+        poll_state = state.get_teen_poll(person.id)
         # Record that a poll attempt happened even if nothing new came back --
         # this is what lets `teenagger status` show whether the background
         # process is actually alive and checking Twilio.
         poll_state.last_polled_at = now.isoformat()
 
-        messages = twilio.fetch_new_inbound_from(teen.phone, since_minutes=180)
+        messages = twilio.fetch_new_inbound_from(person.phone, since_minutes=180)
         if not messages:
             continue
 
@@ -119,12 +123,22 @@ def _process_replies(config, state, twilio, now, today_iso) -> None:
         poll_state.last_seen_sid = messages[0].sid
 
         for message in reversed(new_messages):
-            _handle_inbound_message(config, state, twilio, teen, message, now, today_iso)
+            _handle_inbound_message(config, state, twilio, person, message, now, today_iso)
 
 
-def _handle_inbound_message(config, state, twilio, teen, message, now, today_iso) -> None:
+def _handle_inbound_message(config, state, twilio, person, message, now, today_iso) -> None:
     body = message.body or ""
     keyword = _normalize(body)
+
+    if keyword in STATUS_KEYWORDS:
+        log.info("%s requested STATUS", person.name)
+        twilio.send_message(person.phone, compact_status_text(config, state, now), channel=person.channel)
+        return
+
+    if person.id not in config.teens:
+        return  # STOP/START/HELP/DONE only make sense for an actual teen
+
+    teen = person
     poll_state = state.get_teen_poll(teen.id)
 
     if keyword in STOP_KEYWORDS:

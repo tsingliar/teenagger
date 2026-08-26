@@ -9,6 +9,7 @@ from datetime import datetime
 from .config import ConfigError, load_config
 from .scheduler import run_forever, run_tick
 from .state import StateStore
+from .status_text import full_status_lines
 from .twilio_client import TeenaggerTwilioClient
 
 
@@ -52,53 +53,13 @@ def cmd_list(args) -> int:
     return 0
 
 
-def _fmt_ago(iso_str: str | None, now: datetime) -> str:
-    if not iso_str:
-        return "never"
-    dt = datetime.fromisoformat(iso_str)
-    secs = int((now - dt).total_seconds())
-    if secs < 0:
-        return dt.strftime("%Y-%m-%d %H:%M")
-    if secs < 60:
-        return f"{secs}s ago"
-    mins = secs // 60
-    if mins < 60:
-        return f"{mins}m ago"
-    hours = mins // 60
-    if hours < 48:
-        return f"{hours}h ago"
-    return f"{hours // 24}d ago"
-
-
 def cmd_status(args) -> int:
     config = load_config(args.config)
     state = StateStore.load(args.state)
     now = datetime.now()
-    today_iso = now.date().isoformat()
 
-    print(f"Teenagger status -- {now.strftime('%Y-%m-%d %H:%M')}")
-
-    print("\nTeens:")
-    for teen in config.teens.values():
-        poll_state = state.get_teen_poll(teen.id)
-        nag_state = "PAUSED" if not poll_state.nagging_enabled else "on"
-        last_polled = _fmt_ago(poll_state.last_polled_at, now)
-        hint = "  <- background process may not be running" if poll_state.last_polled_at is None else ""
-        print(f"  {teen.name:<10} {teen.phone:<16} via {teen.channel.upper():<3} nagging: {nag_state:<7} last polled: {last_polled}{hint}")
-
-    print("\nChores:")
-    for chore in config.chores.values():
-        teen = config.teens[chore.teen_id]
-        days = ",".join(chore.days) if chore.days else "every day"
-        if chore.is_due_on(now.weekday()):
-            inst = state.get_or_create_instance(chore.id, today_iso)
-            detail = f"status={inst.status} nags={inst.nag_count} last_nagged={_fmt_ago(inst.last_nagged_at, now)}"
-        else:
-            detail = "not due today"
-        print(
-            f"  [{chore.id}] \"{chore.description}\" -> {teen.name} "
-            f"due {chore.due_time.strftime('%H:%M')} ({days}) | {detail}"
-        )
+    for line in full_status_lines(config, state, now):
+        print(line)
 
     state.save()
     return 0

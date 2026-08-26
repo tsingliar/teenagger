@@ -129,7 +129,7 @@ check `logs/teenagger.err.log`.
 
 - Config changes take effect within one tick (default 60s) -- no restart needed.
 
-### Opt-out keywords: STOP, START, HELP
+### Opt-out keywords: STOP, START, HELP, STATUS
 
 Teenagger also recognizes the standard SMS opt-out keywords, checked on every
 poll alongside DONE:
@@ -145,6 +145,11 @@ poll alongside DONE:
 - **HELP** (also recognizes `info`) -- replies directly to the teen with:
   *"Talk to your parent about chores. Text STOP if you want to stop the
   messages."*
+- **STATUS** -- anyone (any teen, or the parent) can text this to your Twilio
+  number/RCS sender and get a shortened version of `teenagger status` texted
+  right back: each teen's paused/on state, and today's chores with their
+  current status. It skips the "not due today" chores and the last-polled
+  health-check info from the full CLI output, to keep the reply short.
 
 Run `python3 -m teenagger list` to see which teens are currently paused.
 
